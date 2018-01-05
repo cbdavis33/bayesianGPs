@@ -8,7 +8,7 @@ library(rstan)
 library(reshape2)
 library(bayesplot)
 
-setwd("~/Documents/bayesianGPs/")
+# setwd("~/Documents/bayesianGPs/")
 
 rstan_options(auto_write = TRUE)
 numCores <- 4                     # Find the number of cores on your machine
