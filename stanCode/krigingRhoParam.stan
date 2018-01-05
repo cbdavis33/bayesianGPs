@@ -1,5 +1,6 @@
 functions {
-  
+
+  // See pg. 256 in Stan User Guide for version 2.17.0 for a better way to create this matrix.  
   matrix getR(int N,
               real[] x_is,
               real rho){
