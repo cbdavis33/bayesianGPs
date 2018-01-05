@@ -8,6 +8,7 @@ library(rstan)
 library(reshape2)
 library(bayesplot)
 
+# minor edit
 # setwd("~/Documents/bayesianGPs/")
 
 rstan_options(auto_write = TRUE)
