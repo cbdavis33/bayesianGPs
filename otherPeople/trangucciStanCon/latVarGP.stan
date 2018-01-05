@@ -8,6 +8,12 @@ data {
 
 }
 
+transformed data {
+  
+  real delta = 1e-12;
+  
+}
+
 parameters {
 
   real<lower=0> rho;
@@ -19,13 +25,12 @@ parameters {
 
 transformed parameters {
 
-vector[N] f;
+  vector[N] f;
   {
     matrix[N, N] L;
-    matrix[N, N] K;
-    K = cov_exp_quad(x, alpha, rho);
+    matrix[N, N] K = cov_exp_quad(x, alpha, rho);
     for (n in 1:N)
-      K[n, n] = K[n, n] + 1e-12;
+      K[n, n] = K[n, n] + delta;
     L = cholesky_decompose(K);
     f = L * eta;
   }
@@ -51,4 +56,5 @@ model {
 // y_pred[n] = normal_rng(f_pred[n], sigma);
 // 
 // }
+
 

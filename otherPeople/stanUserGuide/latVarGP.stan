@@ -10,7 +10,7 @@ data {
 
 transformed data {
   
-  real delta = 1e-9;
+  real delta = 1e-12;
   
 }
 
@@ -29,7 +29,6 @@ model {
   {
     matrix[N, N] L_K;
     matrix[N, N] K = cov_exp_quad(x, alpha, rho);
-    // diagonal elements
     for (n in 1:N)
       K[n, n] = K[n, n] + delta;
     
@@ -37,10 +36,12 @@ model {
     f = L_K * eta;
     
   }
-  rho ~ inv_gamma(5, 5);
+ 
+  rho ~ gamma(2, 20);
   alpha ~ normal(0, 1);
   sigma ~ normal(0, 1);
   eta ~ normal(0, 1);
   y ~ normal(f, sigma);
   
 }
+

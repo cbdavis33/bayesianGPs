@@ -26,14 +26,13 @@ model {
   
   matrix[N, N] L_K;
   matrix[N, N] K = cov_exp_quad(x, alpha, rho);
-  real sq_sigma = square(sigma);
-  // diagonal elements
   for (n in 1:N)
-    K[n, n] = K[n, n] + sq_sigma;
+    K[n, n] = K[n, n] + square(sigma);
   L_K = cholesky_decompose(K);
-  rho ~ inv_gamma(5, 5);
+  rho ~ gamma(2, 20);
   alpha ~ normal(0, 1);
   sigma ~ normal(0, 1);
   y ~ multi_normal_cholesky(mu, L_K);
 
 }
+

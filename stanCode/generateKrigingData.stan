@@ -19,7 +19,7 @@ generated quantities {
   vector[N] y;
   vector[N] f;
   for (n in 1:N)
-    x[n] = uniform_rng(-2,2);
+    x[n] = uniform_rng(0,1);
 
   {
     matrix[N, N] cov;
