@@ -9,6 +9,7 @@ library(reshape2)
 library(bayesplot)
 
 # minor edit
+# minor edit from cbdMerck
 # setwd("~/Documents/bayesianGPs/")
 
 rstan_options(auto_write = TRUE)
