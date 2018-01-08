@@ -1,29 +1,46 @@
 functions {
 
-  // See pg. 256 in Stan User Guide for version 2.17.0 for a better way to create this matrix.  
-  matrix getR(int N,
-              real[] x_is,
-              real rho){
-  
+  // See pg. 256 in Stan User Guide for version 2.17.0 for a better way to create this matrix.
+  matrix getR(real[] x,
+              vector rho) {
+                
+    int N = size(x);
     matrix[N, N] R;
-  
-    for(j in 1:N){
-      for(i in 1:N){
-        if(i >= j){
-          R[i, j] = rho^(16 * (x_is[i] - x_is[j])^2);
-        }else{
-          R[i, j] = R[j, i];
-        }
+    for (i in 1:(N-1)) {
+      R[i, i] = 1;
+      for (j in (i + 1):N) {
+        R[i, j] = rho^(16 * (x[i] - x[j])^2);
+        R[j, i] = R[i, j];
       }
     }
-    return R;                
+    R[N, N] = 1;
+    //return cholesky_decompose(R);
+    return R;
   }
   
-  matrix getC(int N,
-              matrix R,
+  // matrix getR(int N,
+  //             real[] x_is,
+  //             real rho){
+  // 
+  //   matrix[N, N] R;
+  // 
+  //   for(j in 1:N){
+  //     for(i in 1:N){
+  //       if(i >= j){
+  //         R[i, j] = rho^(16 * (x_is[i] - x_is[j])^2);
+  //       }else{
+  //         R[i, j] = R[j, i];
+  //       }
+  //     }
+  //   }
+  //   return R;                
+  // }
+  
+  matrix getC(matrix R,
               real sigma,
               real sigmaEps){
     
+    int N = rows(R);
     matrix[N, N] C = sigma^2 * R;
     
     for (n in 1:N)
@@ -42,23 +59,22 @@ functions {
                      real sigmaEps) {
                        
     vector[size(x_pred)] f_pred;
-    int N_pred;
-    int N;
-  
-    N_pred = size(x_pred);
-    N = rows(y_is);
-  
+    int N_pred = size(x_pred);
+    int N = rows(y_is);
+    
     {
-      matrix[N, N] R = getR(N, x_is, rho);
-      matrix[N, N] C = getC(N, R, sigma, sigmaEps);
+      matrix[N, N] R = getR(x_is, rho);
+      matrix[N, N] C = getC(R, sigma, sigmaEps);
       matrix[N, N] L_C = cholesky_decompose(C);
+      matrix[N_pred, N_pred] CStar;
+      
       vector[N] K_div_y_is_left = mdivide_left_tri_low(L_C, y_is);
       vector[N] K_div_y_is = mdivide_right_tri_low(K_div_y_is_left',L_C)';
       
       matrix[N, N_pred] k_x_is_x_pred;
       matrix[N, N_pred] v_pred;
       vector[N_pred] f_pred_mu;
-      matrix[N_pred, N_pred] cov_f_pred;
+      
       matrix[N_pred, N_pred] nug_pred;
     
       
@@ -72,6 +88,33 @@ functions {
       f_pred = multi_normal_rng(f_pred_mu, cov_f_pred + nug_pred);
     }
     return f_pred;
+    
+    // {
+    //   matrix[N, N] R = getR(x_is, rho);
+    //   matrix[N, N] C = getC(R, sigma, sigmaEps);
+    //   matrix[N, N] L_C = cholesky_decompose(C);
+    //   
+    //   
+    //   vector[N] K_div_y_is_left = mdivide_left_tri_low(L_C, y_is);
+    //   vector[N] K_div_y_is = mdivide_right_tri_low(K_div_y_is_left',L_C)';
+    //   
+    //   matrix[N, N_pred] k_x_is_x_pred;
+    //   matrix[N, N_pred] v_pred;
+    //   vector[N_pred] f_pred_mu;
+    //   matrix[N_pred, N_pred] cov_f_pred;
+    //   matrix[N_pred, N_pred] nug_pred;
+    // 
+    //   
+    //   
+    //   K_div_y_is = mdivide_right_tri_low(K_div_y_is',L_C)';
+    //   k_x_is_x_pred = cov_exp_quad(x_is, x_pred, sigma, rho);
+    //   f_pred_mu = (k_x_is_x_pred' * K_div_y_is);
+    //   v_pred = mdivide_left_tri_low(L_sigmaEps, k_x_is_x_pred);
+    //   cov_f_pred = cov_exp_quad(x_pred, sigma, rho) - v_pred' * v_pred;
+    //   nug_pred = diag_matrix(rep_vector(1e-12,N_pred));
+    //   f_pred = multi_normal_rng(f_pred_mu, cov_f_pred + nug_pred);
+    // }
+    // return f_pred;
   }
 
 }
