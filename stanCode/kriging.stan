@@ -1,3 +1,4 @@
+// # kriging from someone else's paper. exp(-theta(x_i - x_j)^2) parameterization
 functions {
   vector gp_pred_rng(real[] x_pred,
                      vector y_is,
