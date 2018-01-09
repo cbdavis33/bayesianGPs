@@ -15,7 +15,7 @@ options(mc.cores = numCores)      # Then use one less than that for MCMC samplin
 sim_data_model <- stan_model(file = 'stanCode/generateKrigingDataRhoParam.stan')
 
 sigma <- 1
-rho <- 0.3
+rho <- 0.15
 sigmaEps <- sqrt(0.1)
 mu <- 5
 
@@ -36,8 +36,8 @@ ggplot(data = plt_df[set,], aes(x=x, y=y)) +
   scale_color_manual(name = '', values = c('Realized data'='black','Latent mean function'='red')) +
   xlab('X') +
   ylab('y') +
-  ggtitle(str_c('N = ',length(set),' from length-scale = ', 
-                rho, ', sigma = ', sigma, ', sigmaEps = ', round(sigmaEps,2)))
+  ggtitle(str_c('N = ',length(set),' from rho = ', 
+                rho, ', sigma = ', sigma, ', \nsigmaEps = ', round(sigmaEps,2)))
 
 
 stan_data <- list(n = length(set), nPred = dat_list$n - length(set),
@@ -52,10 +52,13 @@ gp_mod_lat <- sampling(comp_gp_mod_lat,
                        iter = 1000, 
                        control = list(adapt_delta = 0.999))
 
+parsToMonitor <- c("mu", "rho", "sigma", "sigmaEps")
+print(gp_mod_lat, pars = parsToMonitor)
+
 samps_gp_mod_lat <- extract(gp_mod_lat)
-post_pred <- data.frame(x = stan_data$x_pred,
-                        pred_mu = colMeans(samps_gp_mod_lat$f_pred))
-plt_df_rt = data.frame(x = stan_data$x_pred, f = t(samps_gp_mod_lat$f_pred))
+post_pred <- data.frame(x = stan_data$xPred,
+                        pred_mu = colMeans(samps_gp_mod_lat$fPred))
+plt_df_rt = data.frame(x = stan_data$xPred, f = t(samps_gp_mod_lat$fPred))
 
 plt_df_rt_melt = melt(plt_df_rt,id.vars = 'x')
 
@@ -72,7 +75,8 @@ p <- ggplot(data = plt_df[set,], aes(x=x, y=y)) +
                                            'Posterior mean function' = 'green')) +  
   xlab('X') +
   ylab('y') +
-  ggtitle(paste0('N = ',length(set),' from length-scale = 0.15, alpha = 1, sigma = 0.32'))
+  ggtitle(paste0('N = ',length(set),' from rho = ', 
+                rho, ', sigma = ', sigma, ', \nsigmaEps = ', round(sigmaEps,2)))
 p
 
 
@@ -110,7 +114,7 @@ ppc_interval_norm_df <- function(means, sds, y) {
 interval_cover <- function(upper, lower, elements) {
   return(mean(upper >= elements & lower <= elements))
 }
-ppc_full_bayes <- ppc_interval_df(samps_gp_mod_lat$y_pred, samps$y[1,-set])
+ppc_full_bayes <- ppc_interval_df(samps_gp_mod_lat$yPred, samps$y[1,-set])
 
 coverage90 <- interval_cover(upper = ppc_full_bayes$q_95,
                              lower = ppc_full_bayes$q_05,
@@ -122,8 +126,8 @@ coverage50 <- interval_cover(upper = ppc_full_bayes$q_75,
 print(c(coverage90, coverage50))
 
 post <- as.data.frame(gp_mod_lat)
-tmp <- select(post, alpha, length_scale, sigma)
-bayesplot::mcmc_recover_hist(tmp, true = c(1, 0.15, 0.32),
+tmp <- select(post, mu, rho, sigma, sigmaEps)
+bayesplot::mcmc_recover_hist(tmp, true = c(mu, rho, sigma, sigmaEps),
                              facet_args = list(ncol = 1))
 
 ppc_full_bayes$x <- samps$x[1,-set]
@@ -139,4 +143,5 @@ ggplot(data = ppc_full_bayes, aes(x = x, y = y_obs)) +
                                            'Posterior predictive mean' = 'green')) +
   xlab('X') +
   ylab('y') +
-  ggtitle(str_c('Full Bayes PP intervals for N = ',length(set),' from length-scale = 0.15, alpha = 1, sigma = 0.32'))
+  ggtitle(str_c('Full Bayes PP intervals for N = ',length(set),' from \nrho = ', 
+                rho, ', sigma = ', sigma, ', sigmaEps = ', round(sigmaEps,2)))

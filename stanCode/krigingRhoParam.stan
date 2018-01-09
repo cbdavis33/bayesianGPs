@@ -158,17 +158,64 @@ functions {
 
 
   // for d = 1
-  vector gp_pred_rng(real[] xPred,
-                     vector yObs,
-                     real[] xObs,
-                     real mu,
-                     real rho,
-                     real sigma,
-                     real sigmaEps) {
-    
-    int nPred = size(xPred);  // this might need to be changed to rows(xPred) when d > 1                
-    vector[nPred] fPred;
+  vector gp_f_rng(real[] xPred,
+                  vector yObs,
+                  real[] xObs,
+                  real mu,
+                  real rho,
+                  real sigma,
+                  real sigmaEps) {
+
+    int nPred = size(xPred);  // this might need to be changed to rows(xPred) when d > 1
     int n = rows(yObs);
+
+    vector[nPred] fPred;
+    // vector[nPred] yPred;
+
+    {
+      // matrix[n, n] R = getR(xObs, rho);
+      // matrix[n, n] C = getC(R, sigma, sigmaEps);
+      matrix[n, n] C = getC(xObs, rho, sigma, sigmaEps);
+      matrix[n, n] L_C = cholesky_decompose(C);
+
+      matrix[nPred, nPred] Rp = getR(xPred, rho);
+      matrix[nPred, nPred] Kp = getK(Rp, sigma) + diag_matrix(rep_vector(1e-12, nPred));
+      // matrix[nPred, nPred] Cp = getC(xPred, rho, sigma, sigmaEps);
+
+      matrix[n, nPred] Rop = getRop(xObs, xPred, rho);
+      matrix[n, nPred] Kop = getKop(Rop, sigma);
+      // matrix[n, nPred] Cop = getCop(xObs, xPred, rho, sigma, sigmaEps);
+
+      matrix[n, nPred] L_C_Inv_Kop = mdivide_left_tri_low(L_C, Kop);
+      vector[n] yMinusMu = yObs - mu;
+      vector[n] L_C_Inv_yMinusMu = mdivide_left_tri_low(L_C, yMinusMu);
+
+      vector[nPred] meanPred = mu + L_C_Inv_Kop' * L_C_Inv_yMinusMu;
+      matrix[nPred, nPred] varPred = Kp - L_C_Inv_Kop' * L_C_Inv_Kop;
+
+      // meanPred = mu + Kop' * inverse_spd(C) * (yObs - mu);
+      // varPred = Kp - Kop' * inverse_spd(C) * Kop;
+
+      fPred = multi_normal_rng(meanPred, varPred);
+
+    }
+
+    return fPred;
+
+  }
+
+  vector gp_y_rng(real[] xPred,
+                  vector yObs,
+                  real[] xObs,
+                  real mu,
+                  real rho,
+                  real sigma,
+                  real sigmaEps) {
+    
+    int nPred = size(xPred);  // this might need to be changed to rows(xPred) when d > 1  
+    int n = rows(yObs);
+    
+    // vector[nPred] fPred;
     vector[nPred] yPred;
     
     {
@@ -187,7 +234,7 @@ functions {
       vector[n] yMinusMu = yObs - mu;
       vector[n] L_C_Inv_yMinusMu = mdivide_left_tri_low(L_C, yMinusMu);
       
-      vector[nPred] meanPred = mu + L_C_Inv_Cop * L_C_Inv_yMinusMu;
+      vector[nPred] meanPred = mu + L_C_Inv_Cop' * L_C_Inv_yMinusMu;
       matrix[nPred, nPred] varPred = Cp - L_C_Inv_Cop' * L_C_Inv_Cop;
       
       // meanPred = mu + Cop' * inverse_spd(C) * (yObs - mu);
@@ -200,6 +247,7 @@ functions {
     return yPred;
     
   }
+
 
 }
 data {
@@ -249,14 +297,17 @@ model {
 
 }
 
-// generated quantities {
-//   
-//   vector[nPred] f_pred;
-//   vector[nPred] y_pred;
-//   
-//   // f_pred = gp_pred_rng(x_pred, y, x, sigma, rho, sigmaEps);
-//   // for (n in 1:N_pred)
-//   //   y_pred[n] = normal_rng(f_pred[n], sigmaEps);
-// 
-// }
+generated quantities {
+
+  vector[nPred] fPred;
+  vector[nPred] yPred;
+  vector[nPred] yPred2;
+
+  fPred = gp_f_rng(xPred, y, x, mu, rho, sigma, sigmaEps);
+  for (i in 1:nPred)
+    yPred[i] = normal_rng(fPred[i], sigmaEps);
+  yPred2 = gp_y_rng(xPred, y, x, mu, rho, sigma, sigmaEps);
+
+
+}
 
