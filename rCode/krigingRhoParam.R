@@ -56,6 +56,10 @@ parsToMonitor <- c("mu", "rho", "sigma", "sigmaEps")
 print(gp_mod_lat, pars = parsToMonitor)
 
 samps_gp_mod_lat <- extract(gp_mod_lat)
+
+meanf <- apply(samps_gp_mod_lat$fPred, 2, mean)
+MSPE <- mean((samps$f[1,-set] - meanf)^2)
+
 post_pred <- data.frame(x = stan_data$xPred,
                         pred_mu = colMeans(samps_gp_mod_lat$fPred))
 plt_df_rt = data.frame(x = stan_data$xPred, f = t(samps_gp_mod_lat$fPred))

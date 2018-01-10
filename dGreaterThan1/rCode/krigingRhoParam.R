@@ -63,6 +63,8 @@ samps_gp_mod_lat <- extract(gp_mod_lat)
 post_pred <- data.frame(x = stan_data$xPred,
                         pred_mu = colMeans(samps_gp_mod_lat$fPred))
 
+meanf <- apply(samps_gp_mod_lat$fPred, 2, mean)
+MSPE <- mean((samps$f[1,-set] - meanf)^2)
 # plt_df_rt = data.frame(x = stan_data$xPred, f = t(samps_gp_mod_lat$fPred))
 # plt_df_rt_melt = melt(plt_df_rt,id.vars =)
 
