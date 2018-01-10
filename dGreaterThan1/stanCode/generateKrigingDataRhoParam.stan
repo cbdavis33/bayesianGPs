@@ -1,14 +1,21 @@
 functions{
   
-  matrix getR(real[] x,
-              real rho) {
+  matrix getR(matrix x,
+              vector rho) {
                 
-    int N = size(x);
+    int<lower = 1> N = rows(x);
+    int<lower = 1> D = cols(x);
+    vector<lower = 0>[D] dist4;
     matrix[N, N] R;
+    
     for (i in 1:(N-1)) {
-      R[i, i] = 1;
+      R[i, i] = 1.0;
       for (j in (i + 1):N) {
-        R[i, j] = rho^(16 * (x[i] - x[j])^2);
+        dist4 = 4.0 * (x[i] - x[j]);
+        R[i, j] = 1.0;
+        for(k in 1:D){
+          R[i,j] *= rho[k] ^ (dist4[k]^2);
+        }
         R[j, i] = R[i, j];
       }
     }
@@ -27,12 +34,12 @@ functions{
   }
 
   // fine for d = 1. Will need some modifications for d > 1
-  matrix getC(real[] x,
-              real rho,
+  matrix getC(matrix x,
+              vector rho,
               real sigma,
               real sigmaEps){
     
-    int N = size(x); //maybe will be rows(x) if d > 1 (x will be a matrix or vector of arrays)
+    int N = rows(x); 
     matrix[N, N] R = getR(x, rho);
     matrix[N, N] K = getK(R, sigma);
     
@@ -50,11 +57,12 @@ functions{
 }
 data {
   
-  int<lower=1> n;
-  real mu;
-  real<lower=0, upper=1> rho;
-  real<lower=0> sigma;
-  real<lower=0> sigmaEps;
+  int<lower=1> n;                    // number of observations
+  int<lower=1> D;                    // number of input dimensions
+  real mu;                           // GP mean
+  vector<lower=0, upper=1>[D] rho;   // correlation parameters for each dim
+  real<lower=0> sigma;               // GP standard deviation
+  real<lower=0> sigmaEps;            // Noise standard deviation
   
 }
 transformed data {
@@ -65,14 +73,17 @@ transformed data {
 model {}
 generated quantities {
   
-  real x[n];
+  matrix[n, D] X;
   vector[n] y;
   vector[n] f;
-  for (i in 1:n)
-    x[i] = uniform_rng(0,1);
+  for(i in 1:D){   
+    for (j in 1:n){
+      X[j, i] = uniform_rng(0, 1);
+    }
+  }
   
   {
-    matrix[n, n] R = getR(x, rho);
+    matrix[n, n] R = getR(X, rho);
     matrix[n, n] K = getK(R, sigma);
     matrix[n, n] L_K;
     for (i in 1:n)
