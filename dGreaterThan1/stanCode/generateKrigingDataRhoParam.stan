@@ -3,18 +3,18 @@ functions{
   matrix getR(matrix x,
               vector rho) {
                 
-    int<lower = 1> N = rows(x);
-    int<lower = 1> D = cols(x);
-    vector<lower = 0>[D] dist4;
+    int N = rows(x);
+    int D = cols(x);
+    vector[D] dist4;
     matrix[N, N] R;
     
     for (i in 1:(N-1)) {
       R[i, i] = 1.0;
       for (j in (i + 1):N) {
-        dist4 = 4.0 * (x[i] - x[j]);
+        dist4 = 4.0 * (x[i] - x[j])';
         R[i, j] = 1.0;
         for(k in 1:D){
-          R[i,j] *= rho[k] ^ (dist4[k]^2);
+          R[i,j] = R[i,j] * rho[k] ^ (dist4[k]^2);
         }
         R[j, i] = R[i, j];
       }
