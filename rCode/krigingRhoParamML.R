@@ -44,7 +44,7 @@ stan_data <- list(n = length(set), nPred = dat_list$n - length(set),
                   x = samps$x[1,set], y = samps$y[1,set],
                   xPred = samps$x[1,-set], fPred = samps$f[1,-set])
 
-comp_gp_mod_ml <- stan_model(file = 'stanCode/krigingRhoParamMargLike.stan')
+comp_gp_mod_ml <- stan_model(file = 'stanCode/krigingRhoParamML.stan')
 gp_mod_ml <- sampling(comp_gp_mod_ml, 
                       data = stan_data, 
                       cores = 4, 
