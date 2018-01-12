@@ -15,7 +15,7 @@ options(mc.cores = numCores)      # Then use one less than that for MCMC samplin
 sim_data_model <- stan_model(file = 'dGreaterThan1/stanCode/generateKrigingDataRhoParam.stan')
 
 mu <- 5
-rho <- c(0.15, 0.6)
+rho <- c(0.1, 0.2)
 sigma <- 0.5
 sigmaEps <- sqrt(0.1)
 
@@ -23,7 +23,7 @@ d <- length(rho)
 
 
 dat_list <- list(n = 300, D = d, mu = mu, sigma = sigma, rho = rho, sigmaEps = sigmaEps)
-set <- sample(1:dat_list$n, size = 30, replace = F)
+set <- sample(1:dat_list$n, size = 150, replace = F)
 # draw <- sampling(sim_data_model, iter = 1, algorithm = 'Fixed_param', chains = 1, data = dat_list,
 #                  seed = 363360090)
 draw <- sampling(sim_data_model, iter = 1, algorithm = 'Fixed_param', chains = 1, data = dat_list)
@@ -51,9 +51,9 @@ stan_data <- list(n = length(set), nPred = dat_list$n - length(set),
 comp_gp_mod_lat <- stan_model(file = 'dGreaterThan1/stanCode/krigingRhoParam.stan')
 gp_mod_lat <- sampling(comp_gp_mod_lat, 
                        data = stan_data, 
-                       cores = 1, 
-                       chains = 1, 
-                       iter = 100, 
+                       cores = 4, 
+                       chains = 4, 
+                       iter = 1000, 
                        control = list(adapt_delta = 0.999))
 
 parsToMonitor <- c("mu", "rho", "sigma", "sigmaEps")
@@ -63,8 +63,7 @@ samps_gp_mod_lat <- extract(gp_mod_lat)
 post_pred <- data.frame(x = stan_data$xPred,
                         pred_mu = colMeans(samps_gp_mod_lat$fPred))
 
-meanf <- apply(samps_gp_mod_lat$fPred, 2, mean)
-MSPE <- mean((samps$f[1,-set] - meanf)^2)
+MSPE <- mean((samps$f[1,-set] - post_pred$pred_mu)^2)
 # plt_df_rt = data.frame(x = stan_data$xPred, f = t(samps_gp_mod_lat$fPred))
 # plt_df_rt_melt = melt(plt_df_rt,id.vars =)
 
