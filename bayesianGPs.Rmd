@@ -4,7 +4,7 @@ author: "Casey Davis"
 header-includes:
    - \usepackage{amssymb}
    - \usepackage{nicefrac}
-output: html_document
+output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
@@ -25,4 +25,6 @@ A common covariance function is the stationary *squared exponential* or *Gaussia
 
 
 
-Let \mathbf{R} be an $n \times n$ correlation matrix for the observed data: $$ R_{ij} = \prod_{h = 1}^d \rho_h^{16\left( x_{i_h} - x_{j_h}\right)^2} $$
+
+
+Let $\mathbf{R}$ be an $n \times n$ correlation matrix for the observed data: $$ R_{ij} = \prod_{h = 1}^d \rho_h^{16\left( x_{i_h} - x_{j_h}\right)^2} $$
