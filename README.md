@@ -19,5 +19,5 @@ We have observed data, \mathbf{Y}. Conditional on model parameters, $\Lambda$, t
 
 Let \mathbf{R} be an $n \times n$ correlation matrix for the observed data: 
 
-## It turns out this README file doesn't support LaTeX. See bayesianGPs.Rmd and bayesianGPs.html for more info.
+## It turns out this README file doesn't support LaTeX. See bayesianGPs.html and/or bayesianGPs.pdf for more info.
 
