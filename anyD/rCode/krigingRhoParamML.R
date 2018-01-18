@@ -12,17 +12,17 @@ rstan_options(auto_write = TRUE)
 numCores <- 4                     # Find the number of cores on your machine
 options(mc.cores = numCores)      # Then use one less than that for MCMC sampling
 
-sim_data_model <- stan_model(file = 'dGreaterThan1/stanCode/generateKrigingDataRhoParam.stan')
+sim_data_model <- stan_model(file = 'anyD/stanCode/generateKrigingDataRhoParam.stan')
 
 mu <- 5
-rho <- c(0.15, 0.6)
+rho <- c(0.15, .40, .60)
 sigma <- 0.5
 sigmaEps <- sqrt(0.1)
 
 d <- length(rho)
 
 
-dat_list <- list(n = 300, D = d, mu = mu, sigma = sigma, rho = rho, sigmaEps = sigmaEps)
+dat_list <- list(n = 300, D = d, mu = mu, sigma = sigma, rho = array(rho, dim = d), sigmaEps = sigmaEps)
 set <- sample(1:dat_list$n, size = 30, replace = F)
 # draw <- sampling(sim_data_model, iter = 1, algorithm = 'Fixed_param', chains = 1, data = dat_list,
 #                  seed = 363360090)
@@ -42,13 +42,29 @@ if(d == 2){
     ylab('x2') +
     ggtitle(str_c('N = ',length(set),' from rho_1 = ', 
                   rho[1], ', rho_2 = ', rho[2], ', sigma = ', sigma, ', \nsigmaEps = ', round(sigmaEps,2)))
+}else if(d == 1){
+  
+  plt_df = with(samps,data.frame(x = X[ , , 1], y = y[1,], f = f[1,]))
+  
+  ggplot(data = plt_df[set,], aes(x=x, y=y)) +
+    geom_point(aes(colour = 'Realized data')) +
+    geom_line(data = plt_df, aes(x = x, y = f, colour = 'Latent mean function')) +
+    theme_bw() + theme(legend.position="bottom") +
+    scale_color_manual(name = '', values = c('Realized data'='black','Latent mean function'='red')) +
+    xlab('X') +
+    ylab('y') +
+    ggtitle(str_c('N = ',length(set),' from rho = ', 
+                  rho, ', sigma = ', sigma, ', \nsigmaEps = ', round(sigmaEps,2)))
+  
+}else{
+  
 }
 
 stan_data <- list(n = length(set), nPred = dat_list$n - length(set),
-                  x = samps$X[,set,], y = samps$y[,set], d = length(rho),
-                  xPred = samps$X[,-set,], fPred = samps$f[1,-set])
+                  x = matrix(samps$X[,set,], ncol = d), y = samps$y[,set], d = length(rho),
+                  xPred = matrix(samps$X[,-set,], ncol = d), fPred = samps$f[1,-set])
 
-comp_gp_mod_ML <- stan_model(file = 'dGreaterThan1/stanCode/krigingRhoParamML.stan')
+comp_gp_mod_ML <- stan_model(file = 'anyD/stanCode/krigingRhoParamML.stan')
 gp_mod_ML <- sampling(comp_gp_mod_ML, 
                        data = stan_data, 
                        cores = 1, 
@@ -63,28 +79,28 @@ samps_gp_mod_ML <- extract(gp_mod_ML)
 post_pred <- data.frame(x = stan_data$xPred,
                         pred_mu = colMeans(samps_gp_mod_ML$fPred))
 
-MSPE <- mean((samps$f[1,-set] - post_pred$pred_mu)^2)
-# plt_df_rt = data.frame(x = stan_data$xPred, f = t(samps_gp_mod_ML$fPred))
-# plt_df_rt_melt = melt(plt_df_rt,id.vars =)
+MSPE <- mean((samps$f[1,-set] -  post_pred$pred_mu)^2)
+plt_df_rt = data.frame(x = stan_data$xPred, f = t(samps_gp_mod_ML$fPred))
+plt_df_rt_melt = melt(plt_df_rt,id.vars = 'x')
 
-# p <- ggplot(data = plt_df[set,], aes(x=x, y=y)) +
-#   geom_line(data = plt_df_rt_melt, aes(x = x, y = value, group = variable, color = "Posterior draws")) + 
-#   geom_point(aes(colour = 'Realized data')) +
-#   geom_line(data = plt_df, aes(x = x, y = f, colour = 'Latent mean function')) +
-#   geom_line(data = post_pred, aes(x = x, y = pred_mu, colour = 'Posterior mean function')) +
-#   theme_bw() + 
-#   theme(legend.position="bottom") +
-#   scale_color_manual(name = '', values = c('Realized data'='black',
-#                                            'Latent mean function'='red',
-#                                            'Posterior draws' = 'blue',
-#                                            'Posterior mean function' = 'green')) +  
-#   xlab('X') +
-#   ylab('y') +
-#   ggtitle(paste0('N = ',length(set),' from rho = ', 
-#                  rho, ', sigma = ', sigma, ', \nsigmaEps = ', round(sigmaEps,2)))
-# p
-# 
-# 
+p <- ggplot(data = plt_df[set,], aes(x=x, y=y)) +
+  geom_line(data = plt_df_rt_melt, aes(x = x, y = value, group = variable, color = "Posterior draws")) +
+  geom_point(aes(colour = 'Realized data')) +
+  geom_line(data = plt_df, aes(x = x, y = f, colour = 'Latent mean function')) +
+  geom_line(data = post_pred, aes(x = x, y = pred_mu, colour = 'Posterior mean function')) +
+  theme_bw() +
+  theme(legend.position="bottom") +
+  scale_color_manual(name = '', values = c('Realized data'='black',
+                                           'Latent mean function'='red',
+                                           'Posterior draws' = 'blue',
+                                           'Posterior mean function' = 'green')) +
+  xlab('X') +
+  ylab('y') +
+  ggtitle(paste0('N = ',length(set),' from rho = ',
+                 rho, ', sigma = ', sigma, ', \nsigmaEps = ', round(sigmaEps,2)))
+p
+
+
 ppc_interval_df <- function(yrep, y) {
   q_95 <- apply(yrep,2,quantile,0.95)
   q_75 <- apply(yrep,2,quantile,0.75)
@@ -131,22 +147,29 @@ coverage50 <- interval_cover(upper = ppc_full_bayes$q_75,
 print(c(coverage90, coverage50))
 
 post <- as.data.frame(gp_mod_ML)
+tmp <- select(post, mu, "rho[1]", sigma, sigmaEps)
+bayesplot::mcmc_recover_hist(tmp, true = c(mu, rho[1], sigma, sigmaEps),
+                             facet_args = list(ncol = 1))
 tmp <- select(post, mu, "rho[1]", "rho[2]", sigma, sigmaEps)
 bayesplot::mcmc_recover_hist(tmp, true = c(mu, rho[1], rho[2], sigma, sigmaEps),
                              facet_args = list(ncol = 1))
+tmp <- select(post, mu, "rho[1]", "rho[2]", "rho[3]", sigma, sigmaEps)
+bayesplot::mcmc_recover_hist(tmp, true = c(mu, rho[1], rho[2], rho[3], sigma, sigmaEps),
+                             facet_args = list(ncol = 1))
 
-# ppc_full_bayes$x <- samps$x[1,-set]
-# ggplot(data = ppc_full_bayes, aes(x = x, y = y_obs)) +
-#   geom_ribbon(aes(ymax = q_95, ymin = q_05,alpha=0.5, colour = '90% predictive interval')) + 
-#   geom_point(data = plt_df[set,], aes(x = x, y = y, colour='Observed data')) + 
-#   geom_point(data = plt_df[-set,], aes(x = x, y = y, colour='Out-of-sample data')) + 
-#   theme(legend.position="bottom") + 
-#   geom_line(data = ppc_full_bayes, aes(x = x, y = mu, colour = 'Posterior predictive mean')) +
-#   scale_color_manual(name = '', values = c('Observed data' = 'red',
-#                                            '90% predictive interval' = 'blue',
-#                                            'Out-of-sample data' = 'black',
-#                                            'Posterior predictive mean' = 'green')) +
-#   xlab('X') +
-#   ylab('y') +
-#   ggtitle(str_c('Full Bayes PP intervals for N = ',length(set),' from \nrho = ', 
-#                 rho, ', sigma = ', sigma, ', sigmaEps = ', round(sigmaEps,2)))
+
+ppc_full_bayes$x <- samps$X[1,-set, 1]
+ggplot(data = ppc_full_bayes, aes(x = x, y = y_obs)) +
+  geom_ribbon(aes(ymax = q_95, ymin = q_05,alpha=0.5, colour = '90% predictive interval')) +
+  geom_point(data = plt_df[set,], aes(x = x, y = y, colour='Observed data')) +
+  geom_point(data = plt_df[-set,], aes(x = x, y = y, colour='Out-of-sample data')) +
+  theme(legend.position="bottom") +
+  geom_line(data = ppc_full_bayes, aes(x = x, y = mu, colour = 'Posterior predictive mean')) +
+  scale_color_manual(name = '', values = c('Observed data' = 'red',
+                                           '90% predictive interval' = 'blue',
+                                           'Out-of-sample data' = 'black',
+                                           'Posterior predictive mean' = 'green')) +
+  xlab('X') +
+  ylab('y') +
+  ggtitle(str_c('Full Bayes PP intervals for N = ',length(set),' from \nrho = ',
+                rho, ', sigma = ', sigma, ', sigmaEps = ', round(sigmaEps,2)))
