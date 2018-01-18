@@ -19,12 +19,15 @@ I'll probably build up from the most basic stationary model and work towards the
 
 ## Setup
 
-We have observed data, $\mathbf{Y}$. Conditional on model parameters, $\Lambda$, the data are treated as a realization of a Gaussian process, $Y(\mathbf{x})$. $$ Y(\mathbf{x}) | \Lambda \sim GP\left( \mu, C\left(\cdot, \cdot \right) ) \right)$$ where $\mu$ is the process mean, and $C\left(\cdot, \cdot \right)$ is the process covariance. $$ C\left(\mathbf{x}, \mathbf{x'} \right) = Cov\left( Y\left(\mathbf{x} \right),\; Y\left(\mathbf{x'} \right)  \right) $$
+We have observed data, $\mathbf{Y}$. Conditional on model parameters, $\Lambda$, the data are treated as a realization from a Gaussian process, $Y(\mathbf{x})$. $$ Y(\mathbf{x}) | \Lambda \sim GP\left( \mu, C\left(\cdot, \cdot \right) ) \right)$$ where $\mu$ is the process mean, and $C\left(\cdot, \cdot \right)$ is the process covariance. $$ C\left(\mathbf{x}, \mathbf{x'} \right) = Cov\left( Y\left(\mathbf{x} \right),\; Y\left(\mathbf{x'} \right)  \right) $$
 
 A common covariance function is the stationary *squared exponential* or *Gaussian* covariance function. For $\mathbf{x} \in \mathbb{R}^D$, it commonly is seen in some version of the form $$ C\left(\mathbf{x}, \mathbf{x'} \right) = \sigma^2 exp\left( -\sum_{d=1}^D \theta_d \left( x_{d} - x_d'\right)^2 \right) + \sigma^2_{\epsilon}\delta $$ where $\sigma^2$ is the process variance, $\theta_d$ is a scale-parameter for each dimension *d*, $\sigma^2_{\epsilon}$ is the scale of random noise, and $\delta$ is the Kronecker delta function with $\delta = 1$ if $\mathbf{x} = \mathbf{x'}$ and 0 otherwise. I prefer a slightly different parameterization that eases interpretability: $$C\left(\mathbf{x}, \mathbf{x'} \right) = \sigma^2 \prod_{d = 1}^D \rho_d^{16\left( x_{d} - x_d'\right)^2}$$ In this parameterization, $\rho_d$ is the correlation between the response at two points that differ only in the $d^{th}$ dimension by $\frac{1}{4}$ of a unit. So if the inputs are all standardized to $[0,1]^D$, then $\rho_d$ is the correlation between the response at two points that differ only in the $d^{th}$ dimension by $\frac{1}{4}$ the range of the data in the $d^{th}$ dimension.
 
+## Model
 
+We have $n$ observations, $\mathbf{Y} = \left(y_1, \ldots, y_n\right)^{\top}$ at $n$ locations, $\mathbf{X} = \left(\mathbf{x_1},\ldots, \mathbf{x_n} \right)^{\top}$, where $\mathbf{x_i} = \left( x_{i,1}, \ldots, x_{i,d}\right)^{\top}$ Basically, the $i^{th}$ row of $\mathbf{X}$ contains the input values for the $i^{th}$ observation.
 
+There are two formulations for Gaussian data. First is the latent variable GP:
+\begin{align*} y_i | \mathbf{\Lambda}, f_i &\sim N(f_i, \sigma^2_{\epsilon}) ,  i = 1,\ldots,n \\ \mathbf{f} | \mathbf{\Lambda} &\sim N_n\left(\mu\mathbf{1_n}, \mathbf{K} \right) \\ \rho_d &\sim Beta\left( \alpha_d, \beta_d\right),  d = 1,\ldots,D \\ \sigma &\sim whatever \\ \sigma_{\epsilon} &\sim whatever \\ p(\mu) &\propto 1 \end{align*}
 
-
-Let $\mathbf{R}$ be an $n \times n$ correlation matrix for the observed data: $$ R_{ij} = \prod_{h = 1}^d \rho_h^{16\left( x_{i_h} - x_{j_h}\right)^2} $$
+<!-- Let $\mathbf{R}$ be an $n \times n$ correlation matrix for the observed data: $$ R_{ij} = \prod_{h = 1}^d \rho_h^{16\left( x_{i_h} - x_{j_h}\right)^2} $$ -->
