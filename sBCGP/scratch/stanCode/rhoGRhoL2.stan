@@ -30,7 +30,7 @@ model{
   wRaw ~ beta(alphaW, betaW);
   rhoG ~ beta(alphaRhoG, betaRhoG);
   rhoLRaw ~ beta(alphaRhoL, betaRhoL);
-  // target += sum(log(rhoG));
+  target += sum(log(rhoG));
   
 }
 
