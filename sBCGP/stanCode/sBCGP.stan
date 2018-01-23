@@ -297,9 +297,9 @@ data {
 parameters {
   
   real mu;
-  real<lower = 0, upper = 1> w01;
-  vector<lower = 0, upper = 1>[d] rhoG;
-  vector<lower = 0, upper = 1>[d] rhoLRaw;
+  real<lower = 0, upper = 1> wRaw;
+  vector[d] rhoGRaw;
+  vector<lower = 0, upper = 1>[d] rhoL;
   real<lower=0> sigma;
   real<lower=0> sigmaEps;
   vector[n] eta;
@@ -308,10 +308,12 @@ parameters {
 
 transformed parameters {
   
+  real<lower = 0.5, upper = 1> w = 0.5 + 0.5*wRaw;
+  
   vector[n] f;
   
   {
-    matrix[n, n] R = getR(x, rho);
+    matrix[n, n] R = getR(x, w, rhoG, rhoL);
     matrix[n, n] K = getK(R, sigma);
     matrix[n, n] L_K;
     for (i in 1:n)
@@ -325,10 +327,13 @@ transformed parameters {
 model {
   
   mu ~ normal(0, 1e6);
-  rho ~ uniform(0, 1);
+  wRaw ~ beta(1, 1);
+  rhoG ~ beta(1, 1);
+  rhoLRaw ~ beta(1, 1);
   sigma ~ normal(0, 1);
   sigmaEps ~ normal(0, 1);
   eta ~ normal(0, 1);
+  
   y ~ normal(f, sigmaEps);
   
 }
