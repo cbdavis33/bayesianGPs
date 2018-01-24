@@ -298,8 +298,8 @@ parameters {
   
   real mu;
   real<lower = 0, upper = 1> wRaw;
-  vector[d] rhoGRaw;
-  vector<lower = 0, upper = 1>[d] rhoL;
+  vector<lower = 0, upper = 1>[d] rhoG;
+  vector<lower = 0, upper = 1>[d] rhoLRaw;
   real<lower=0> sigma;
   real<lower=0> sigmaEps;
   vector[n] eta;
@@ -309,6 +309,7 @@ parameters {
 transformed parameters {
   
   real<lower = 0.5, upper = 1> w = 0.5 + 0.5*wRaw;
+  vector<lower = 0, upper = 1>[d] rhoL = rhoG .* rhoLRaw;
   
   vector[n] f;
   
@@ -330,6 +331,7 @@ model {
   wRaw ~ beta(1, 1);
   rhoG ~ beta(1, 1);
   rhoLRaw ~ beta(1, 1);
+  // target += sum(log(rhoG));
   sigma ~ normal(0, 1);
   sigmaEps ~ normal(0, 1);
   eta ~ normal(0, 1);

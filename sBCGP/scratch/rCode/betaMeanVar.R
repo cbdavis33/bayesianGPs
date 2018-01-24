@@ -31,9 +31,4 @@ meanSDRhoL <- function(alphaRhoG, betaRhoG, alphaRhoL, betaRhoL){
   
 }
 
-alphaRhoG <- c(1, 1, 1)
-betaRhoG <- c(1, 1, 1)
-alphaRhoL <- c(1, 8, 3)
-betaRhoL <- c(1, 2, 6)
-
 meanSDRhoL(alphaRhoG, betaRhoG, alphaRhoL, betaRhoL)

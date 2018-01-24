@@ -15,18 +15,20 @@ options(mc.cores = numCores)      # Then use one less than that for MCMC samplin
 sim_data_model <- stan_model(file = 'sBCGP/stanCode/generateDataSBCGP.stan')
 
 mu <- 5
-w <- 1
-rhoG <- c(0.7, 0.4)
-rhoL <- c(0.01, 0.3)
+w <- .75
+# rhoG <- c(0.7, 0.4)
+# rhoL <- c(0.01, 0.3)
+rhoG <- .7
+rhoL <- .4
 sigma <- 0.5
-sigmaEps <- sqrt(0.1)
+sigmaEps <- .05
 
 d <- length(rhoG)
 
-dat_list <- list(n = 300, D = d, mu = mu, w = w, sigma = sigma, sigmaEps = sigmaEps,
+dat_list <- list(n = 81, D = d, mu = mu, w = w, sigma = sigma, sigmaEps = sigmaEps,
                  rhoG = array(rhoG, dim = d), rhoL = array(rhoL, dim = d))
 set.seed(11235)
-set <- sample(1:dat_list$n, size = 15, replace = F)
+set <- sample(1:dat_list$n, size = 80, replace = F)
 draw <- sampling(sim_data_model, iter = 1, algorithm = 'Fixed_param', chains = 1, data = dat_list,
                  seed = 363360090)
 # draw <- sampling(sim_data_model, iter = 1, algorithm = 'Fixed_param', chains = 1, data = dat_list)
