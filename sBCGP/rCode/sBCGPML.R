@@ -16,10 +16,10 @@ sim_data_model <- stan_model(file = 'sBCGP/stanCode/generateDataSBCGP.stan')
 
 mu <- 15
 w <- .62
-# rhoG <- c(0.7, 0.4)
-# rhoL <- c(0.01, 0.3)
-rhoG <- .7
-rhoL <- .21
+rhoG <- c(0.7, 0.4)
+rhoL <- c(0.2, 0.3)
+# rhoG <- .7
+# rhoL <- .21
 sigma <- 1.2
 sigmaEps <- .35
 
