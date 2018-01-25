@@ -23,9 +23,10 @@ rhoL <- .21
 sigmaEps <- .35
 
 muV <- -1/10
-rhoV <- 0.8
+rhoV <- 0.1
 # rhoV <- c(0.8, .5)
-sigmaV <- sqrt(1/10)
+# sigmaV <- sqrt(1/10)
+sigmaV <- 3
 
 d <- length(rhoG)
 
@@ -34,9 +35,9 @@ dat_list <- list(n = 100, D = d, mu = mu, w = w, sigmaEps = sigmaEps,
                  muV = muV, rhoV = array(rhoV, dim = d), sigmaV = sigmaV)
 # set.seed(11235)
 set <- sample(1:dat_list$n, size = 30, replace = F)
-draw <- sampling(sim_data_model, iter = 1, algorithm = 'Fixed_param', chains = 1, data = dat_list,
-                 seed = 363360090)
-# draw <- sampling(sim_data_model, iter = 1, algorithm = 'Fixed_param', chains = 1, data = dat_list)
+# draw <- sampling(sim_data_model, iter = 1, algorithm = 'Fixed_param', chains = 1, data = dat_list,
+#                  seed = 363360090)
+draw <- sampling(sim_data_model, iter = 1, algorithm = 'Fixed_param', chains = 1, data = dat_list)
 
 samps <- rstan::extract(draw)
 
@@ -57,18 +58,28 @@ if(d == 2){
                   ', \nsigma = ', sigma, ', sigmaEps = ', round(sigmaEps,2)))
 }else if(d == 1){
   
-  plt_df = with(samps,data.frame(x = X[ , , 1], y = y[1,], f = f[1,]))
+  plt_df = with(samps,data.frame(x = X[ , , 1], y = y[1,], f = f[1,],
+                                 sig2X = sig2X[1,]))
   
-  ggplot(data = plt_df[set,], aes(x=x, y=y)) +
+  dataPlot <- ggplot(data = plt_df[set,], aes(x=x, y=y)) +
     geom_point(aes(colour = 'Realized data')) +
     geom_line(data = plt_df, aes(x = x, y = f, colour = 'Latent mean function')) +
     theme_bw() + theme(legend.position="bottom") +
     scale_color_manual(name = '', values = c('Realized data'='black','Latent mean function'='red')) +
     xlab('X') +
-    ylab('y') +
-    ggtitle(str_c('N = ',length(set),' from rho_G = ', 
-                  rhoG, ', rho_L = ', rhoL, ',  \nw = ', w, 
-                  ',  sigma = ', sigma, ', sigmaEps = ', round(sigmaEps,2)))
+    ylab('y') #+
+    # ggtitle(str_c('N = ',length(set),' from rho_G = ', 
+    #               rhoG, ', rho_L = ', rhoL, ',  \nw = ', w, 
+    #               ',  sigma = ', sigma, ', sigmaEps = ', round(sigmaEps,2)))
+  
+  varPlot <- ggplot(data = plt_df[set,], aes(x=x, y=y)) +
+    geom_line(data = plt_df, aes(x = x, y = sig2X, colour = 'Variance function')) +
+    theme_bw() + theme(legend.position="bottom") +
+    scale_color_manual(name = '', values = c('Variance function'='red')) +
+    xlab('X') +
+    ylab('sig2X')
+  
+  gridExtra::grid.arrange(dataPlot, varPlot)
   
 }else{
   
