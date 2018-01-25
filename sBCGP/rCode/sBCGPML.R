@@ -12,21 +12,26 @@ rstan_options(auto_write = TRUE)
 numCores <- 4                     # Find the number of cores on your machine
 options(mc.cores = numCores)      # Then use one less than that for MCMC sampling
 
-sim_data_model <- stan_model(file = 'anyD/stanCode/generateKrigingDataRhoParam.stan')
+sim_data_model <- stan_model(file = 'sBCGP/stanCode/generateDataSBCGP.stan')
 
-mu <- 5
-rho <- c(0.15, .40, .60)
-sigma <- 0.5
-sigmaEps <- sqrt(0.1)
+mu <- 15
+w <- .62
+# rhoG <- c(0.7, 0.4)
+# rhoL <- c(0.01, 0.3)
+rhoG <- .7
+rhoL <- .21
+sigma <- 1.2
+sigmaEps <- .35
 
-d <- length(rho)
+d <- length(rhoG)
 
-
-dat_list <- list(n = 300, D = d, mu = mu, sigma = sigma, rho = array(rho, dim = d), sigmaEps = sigmaEps)
+dat_list <- list(n = 100, D = d, mu = mu, w = w, sigma = sigma, sigmaEps = sigmaEps,
+                 rhoG = array(rhoG, dim = d), rhoL = array(rhoL, dim = d))
+# set.seed(11235)
 set <- sample(1:dat_list$n, size = 30, replace = F)
-# draw <- sampling(sim_data_model, iter = 1, algorithm = 'Fixed_param', chains = 1, data = dat_list,
-#                  seed = 363360090)
-draw <- sampling(sim_data_model, iter = 1, algorithm = 'Fixed_param', chains = 1, data = dat_list)
+draw <- sampling(sim_data_model, iter = 1, algorithm = 'Fixed_param', chains = 1, data = dat_list,
+                 seed = 363360090)
+# draw <- sampling(sim_data_model, iter = 1, algorithm = 'Fixed_param', chains = 1, data = dat_list)
 
 samps <- rstan::extract(draw)
 
@@ -40,8 +45,11 @@ if(d == 2){
     scale_colour_gradient(low = "blue",high = "white") + 
     xlab('x1') +
     ylab('x2') +
-    ggtitle(str_c('N = ',length(set),' from rho_1 = ', 
-                  rho[1], ', rho_2 = ', rho[2], ', sigma = ', sigma, ', \nsigmaEps = ', round(sigmaEps,2)))
+    ggtitle(str_c('N = ',length(set),' from rhoG_1 = ', 
+                  rhoG[1], ', rhoG_2 = ', rhoG[2],
+                  ', \nw = ', w,
+                  ', rhoL_1 = ', rhoL[1], ', rhoL_2 = ', rhoL[2],
+                  ', \nsigma = ', sigma, ', sigmaEps = ', round(sigmaEps,2)))
 }else if(d == 1){
   
   plt_df = with(samps,data.frame(x = X[ , , 1], y = y[1,], f = f[1,]))
@@ -53,33 +61,34 @@ if(d == 2){
     scale_color_manual(name = '', values = c('Realized data'='black','Latent mean function'='red')) +
     xlab('X') +
     ylab('y') +
-    ggtitle(str_c('N = ',length(set),' from rho = ', 
-                  rho, ', sigma = ', sigma, ', \nsigmaEps = ', round(sigmaEps,2)))
+    ggtitle(str_c('N = ',length(set),' from rho_G = ', 
+                  rhoG, ', rho_L = ', rhoL, ',  \nw = ', w, 
+                  ',  sigma = ', sigma, ', sigmaEps = ', round(sigmaEps,2)))
   
 }else{
   
 }
 
 stan_data <- list(n = length(set), nPred = dat_list$n - length(set),
-                  x = matrix(samps$X[,set,], ncol = d), y = samps$y[,set], d = length(rho),
+                  x = matrix(samps$X[,set,], ncol = d), y = samps$y[,set], d = length(rhoG),
                   xPred = matrix(samps$X[,-set,], ncol = d), fPred = samps$f[1,-set])
 
-comp_gp_mod_ML <- stan_model(file = 'anyD/stanCode/krigingRhoParamML.stan')
+comp_gp_mod_ML <- stan_model(file = 'sBCGP/stanCode/sBCGPML.stan')
 gp_mod_ML <- sampling(comp_gp_mod_ML, 
-                       data = stan_data, 
-                       cores = 1, 
-                       chains = 1, 
-                       iter = 100, 
-                       control = list(adapt_delta = 0.999))
+                      data = stan_data, 
+                      cores = 4, 
+                      chains = 4, 
+                      iter = 1000, 
+                      control = list(adapt_delta = 0.999))
 
-parsToMonitor <- c("mu", "rho", "sigma", "sigmaEps")
+parsToMonitor <- c("mu", "w", "rhoG", "rhoL", "sigma", "sigmaEps")
 print(gp_mod_ML, pars = parsToMonitor)
 
 samps_gp_mod_ML <- extract(gp_mod_ML)
 post_pred <- data.frame(x = stan_data$xPred,
                         pred_mu = colMeans(samps_gp_mod_ML$fPred))
 
-MSPE <- mean((samps$f[1,-set] -  post_pred$pred_mu)^2)
+MSPE <- mean((samps$f[1,-set] - post_pred$pred_mu)^2)
 plt_df_rt = data.frame(x = stan_data$xPred, f = t(samps_gp_mod_ML$fPred))
 plt_df_rt_melt = melt(plt_df_rt,id.vars = 'x')
 
@@ -96,8 +105,9 @@ p <- ggplot(data = plt_df[set,], aes(x=x, y=y)) +
                                            'Posterior mean function' = 'green')) +
   xlab('X') +
   ylab('y') +
-  ggtitle(paste0('N = ',length(set),' from rho = ',
-                 rho, ', sigma = ', sigma, ', \nsigmaEps = ', round(sigmaEps,2)))
+  ggtitle(str_c('N = ',length(set),' from rho_G = ', 
+                rhoG, ', rho_L = ', rhoL, ',  \nw = ', w,
+                ',  sigma = ', sigma, ', sigmaEps = ', round(sigmaEps,2)))
 p
 
 
@@ -147,15 +157,15 @@ coverage50 <- interval_cover(upper = ppc_full_bayes$q_75,
 print(c(coverage90, coverage50))
 
 post <- as.data.frame(gp_mod_ML)
-tmp <- select(post, mu, "rho[1]", sigma, sigmaEps)
-bayesplot::mcmc_recover_hist(tmp, true = c(mu, rho[1], sigma, sigmaEps),
+tmp <- select(post, mu, "rhoG[1]", "rhoL[1]", sigma, sigmaEps)
+bayesplot::mcmc_recover_hist(tmp, true = c(mu, rhoG[1], rhoL[1], sigma, sigmaEps),
                              facet_args = list(ncol = 1))
-tmp <- select(post, mu, "rho[1]", "rho[2]", sigma, sigmaEps)
-bayesplot::mcmc_recover_hist(tmp, true = c(mu, rho[1], rho[2], sigma, sigmaEps),
-                             facet_args = list(ncol = 1))
-tmp <- select(post, mu, "rho[1]", "rho[2]", "rho[3]", sigma, sigmaEps)
-bayesplot::mcmc_recover_hist(tmp, true = c(mu, rho[1], rho[2], rho[3], sigma, sigmaEps),
-                             facet_args = list(ncol = 1))
+# tmp <- select(post, mu, "rhoG[1]", "rhoG[2]", "rhoL[1]", "rhoL[2]", sigma, sigmaEps)
+# bayesplot::mcmc_recover_hist(tmp, true = c(mu, rhoG[1], rhoG[2], rhoL[1], rhoL[2], sigma, sigmaEps),
+#                              facet_args = list(ncol = 1))
+# tmp <- select(post, mu, "rho[1]", "rho[2]", "rho[3]", sigma, sigmaEps)
+# bayesplot::mcmc_recover_hist(tmp, true = c(mu, rho[1], rho[2], rho[3], sigma, sigmaEps),
+#                              facet_args = list(ncol = 1))
 
 
 ppc_full_bayes$x <- samps$X[1,-set, 1]
@@ -171,5 +181,6 @@ ggplot(data = ppc_full_bayes, aes(x = x, y = y_obs)) +
                                            'Posterior predictive mean' = 'green')) +
   xlab('X') +
   ylab('y') +
-  ggtitle(str_c('Full Bayes PP intervals for N = ',length(set),' from \nrho = ',
-                rho, ', sigma = ', sigma, ', sigmaEps = ', round(sigmaEps,2)))
+  ggtitle(str_c('Full Bayes PP intervals for N = ',length(set),' from rho_G = ', 
+                rhoG, ', rho_L = ', rhoL, ',  \nw = ', w, 
+                ',  sigma = ', sigma, ', sigmaEps = ', round(sigmaEps,2)))
