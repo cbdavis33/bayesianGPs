@@ -68,7 +68,7 @@ functions {
     int N = rows(x);
     matrix[N, N] G = getG(x, rhoG);
     matrix[N, N] L = getG(x, rhoL);
-    matrix[N, N] R = getR(w, G, L);
+    matrix[N, N] R = getR(x, w, G, L);
     matrix[N, N] K = getK(R, sig2X);
     
     matrix[N, N] C = K + diag_matrix(rep_vector(sigmaEps^2,N));
@@ -122,14 +122,17 @@ functions {
     return Rop;
   }
 
-  // getKop needs rewritten to involve sig2X
+  
   matrix getKop(matrix Rop,
-                real sigma){
+                vector sig2X,
+                vector sig2Xp){
 
     int n = rows(Rop);
     int nP = cols(Rop);
 
-    matrix[n, nP] Kop = sigma^2 * Rop;
+    vector[n] rootV = sqrt(sig2X);
+    vector[nP] rootVp = sqrt(sig2Xp);
+    matrix[n, nP] Kop = (rootV * rootVp) .* Rop;
 
     return Kop;
   }
@@ -161,13 +164,14 @@ functions {
                 vector rhoG,
                 vector rhoL,
                 vector sig2X,
+                vector sig2Xp,
                 real sigmaEps){
 
     int n = rows(x);
     int nP = rows(xP); 
 
     matrix[n, nP] Rop = getRop(x, xP, w, rhoG, rhoL);
-    matrix[n, nP] Kop = getKop(Rop, sig2X); // NEEDS MODIFICATION AFTER REWRITING getKop
+    matrix[n, nP] Kop = getKop(Rop, sig2X, sig2Xp);
     matrix[n, nP] Dop = getDop(x, xP);
 
     matrix[n, nP] Cop = Kop + sigmaEps^2 * Dop;
@@ -176,7 +180,6 @@ functions {
 
   }
 
-  // NEEDS MODIFICATION AFTER REWRITING getKop
   vector gp_f_rng(matrix xPred,
                   vector yObs,
                   matrix xObs,
@@ -185,9 +188,10 @@ functions {
                   vector rhoG,
                   vector rhoL,
                   vector sig2X,
+                  vector sig2Xp,
                   real sigmaEps) {
 
-    int nPred = rows(xPred);  // this might need to be changed to rows(xPred) when d > 1
+    int nPred = rows(xPred);  
     int n = rows(yObs);
 
     vector[nPred] fPred;
@@ -196,15 +200,15 @@ functions {
     {
       // matrix[n, n] R = getR(xObs, rho);
       // matrix[n, n] C = getC(R, sigma, sigmaEps);
-      matrix[n, n] C = getC(xObs, w, rhoG, rhoL, sigma, sigmaEps);
+      matrix[n, n] C = getC(xObs, w, rhoG, rhoL, sig2X, sigmaEps);
       matrix[n, n] L_C = cholesky_decompose(C);
       
       matrix[nPred, nPred] Rp = getR(xPred, w, rhoG, rhoL);
-      matrix[nPred, nPred] Kp = getK(Rp, sigma) + diag_matrix(rep_vector(1e-12, nPred));
+      matrix[nPred, nPred] Kp = getK(Rp, sig2Xp) + diag_matrix(rep_vector(1e-12, nPred));
       // matrix[nPred, nPred] Cp = getC(xPred, rho, sigma, sigmaEps);
 
       matrix[n, nPred] Rop = getRop(xObs, xPred, w, rhoG, rhoL);
-      matrix[n, nPred] Kop = getKop(Rop, sigma);
+      matrix[n, nPred] Kop = getKop(Rop, sig2X, sig2Xp);
       // matrix[n, nPred] Cop = getCop(xObs, xPred, rho, sigma, sigmaEps);
 
       matrix[n, nPred] L_C_Inv_Kop = mdivide_left_tri_low(L_C, Kop);
@@ -234,6 +238,7 @@ functions {
                   vector rhoG,
                   vector rhoL,
                   vector sig2X,
+                  vector sig2Xp,
                   real sigmaEps) {
 
     int nPred = rows(xPred);  // this might need to be changed to rows(xPred) when d > 1
@@ -244,14 +249,14 @@ functions {
     {
       // matrix[n, n] R = getR(xObs, rho);
       // matrix[n, n] C = getC(R, sigma, sigmaEps);
-      matrix[n, n] C = getC(xObs, w, rhoG, rhoL, sigma, sigmaEps);
+      matrix[n, n] C = getC(xObs, w, rhoG, rhoL, sig2X, sigmaEps);
       matrix[n, n] L_C = cholesky_decompose(C);
 
       // matrix[nPred, nPred] Rp = getR(x_pred, rho);
       // matrix[nPred, nPred] Cp = getC(Rp, sigma, sigmaEps);
-      matrix[nPred, nPred] Cp = getC(xPred, w, rhoG, rhoL, sigma, sigmaEps);
+      matrix[nPred, nPred] Cp = getC(xPred, w, rhoG, rhoL, sig2Xp, sigmaEps);
 
-      matrix[n, nPred] Cop = getCop(xObs, xPred, w, rhoG, rhoL, sigma, sigmaEps);
+      matrix[n, nPred] Cop = getCop(xObs, xPred, w, rhoG, rhoL, sig2X, sig2Xp, sigmaEps);
 
       matrix[n, nPred] L_C_Inv_Cop = mdivide_left_tri_low(L_C, Cop);
       vector[n] yMinusMu = yObs - mu;
@@ -268,6 +273,44 @@ functions {
     }
 
     return yPred;
+
+  }
+
+  vector gp_V_rng(matrix xPred,
+                  vector logVObs,
+                  matrix xObs,
+                  real muV,
+                  real sigmaV,
+                  vector rhoV) {
+
+    int nPred = rows(xPred);  
+    int n = rows(logVObs);
+
+    vector[nPred] vPred;
+
+    {
+      
+      matrix[nPred, nPred] KV = sigmaV^2 * getG(xPred, rhoV);
+      matrix[n, n] K = sigmaV^2 * getG(xObs, rhoV);
+      matrix[n, n] L_K = cholesky_decompose(K);
+      matrix[n, nPred] Kop = sigmaV^2 * getGop(xObs, xPred, rhoV);   
+      
+      matrix[n, nPred] L_K_Inv_Kop = mdivide_left_tri_low(L_K, Kop);
+      vector[n] yMinusMu = logVObs - muV;
+      vector[n] L_K_Inv_yMinusMu = mdivide_left_tri_low(L_K, yMinusMu);
+      
+      vector[nPred] meanVPred = muV + L_K_Inv_Kop' * L_K_Inv_yMinusMu;
+      matrix[nPred, nPred] varPred = KV - L_C_Inv_Kop' * L_C_Inv_Kop;
+      
+      matrix[nPred, nPred] L_varPred = cholesky_decompose(varPred);
+      
+      vector[nPred] logVPred = multi_normal_cholesky_rng(meanPred, L_varPred);
+      
+      vPred = exp(logVPred);
+
+    }
+
+    return vPred;
 
   }
 
@@ -290,8 +333,11 @@ parameters {
   real<lower = 0, upper = 1> wRaw;
   vector<lower = 0, upper = 1>[d] rhoG;
   vector<lower = 0, upper = 1>[d] rhoLRaw;
-  real<lower=0> sigma;
   real<lower=0> sigmaEps;
+  vector[n] logSig2X;
+  real muV;
+  vector<lower = 0, upper = 1>[d] rhoV;
+  real<lower=0> sigmaV;
   
 }
 
@@ -299,28 +345,38 @@ transformed parameters {
   
   real<lower = 0.5, upper = 1> w = 0.5 + 0.5*wRaw;
   vector<lower = 0, upper = 1>[d] rhoL = rhoG .* rhoLRaw;
+  vector<lower = 0>[n] sig2X = exp(logSig2X); 
   
 }
 model {
   
   matrix[n, n] L_C;
   vector[n] muVec;
+  
+  matrix[n, n] L_KV;
+  vector[n] muVVec;
+  
   {
    
-    matrix[n, n] C = getC(x, w, rhoG, rhoL, sigma, sigmaEps);
+    matrix[n, n] C = getC(x, w, rhoG, rhoL, sig2X, sigmaEps);
+    matrix[n, n] KV = sigmaV^2 * getG(x, rhoV);
     L_C = cholesky_decompose(C);
+    L_KV = cholesky_decompose(KV);
     muVec = rep_vector(mu, n);
-    
+    muVVec = rep_vector(muV, n);
+
   }
-  
   
   mu ~ normal(0, 1e6);
   wRaw ~ beta(1, 1);
   rhoG ~ beta(1, 1);
   rhoLRaw ~ beta(1, 1);
   // target += sum(log(rhoG));
-  sigma ~ normal(0, 1);
   sigmaEps ~ normal(0, 1);
+  muV ~ normal(0, 1);
+  rhoV ~ beta(1,1);
+  sigmaV ~ normal(0, 1);
+  logSig2X ~ multi_normal_cholesky(muVVec, L_KV);
   
   y ~ multi_normal_cholesky(muVec, L_C);
   
@@ -331,12 +387,20 @@ generated quantities {
   vector[nPred] fPred;
   vector[nPred] yPred;
   vector[nPred] yPred2;
+  vector[nPred] sig2Xp;
 
-  fPred = gp_f_rng(xPred, y, x, mu, w, rhoG, rhoL, sigma, sigmaEps);
+  {
+    
+    sig2Xp = gp_V_rng(xPred, logSig2X, x, muV, sigmaV, rhoV);
+    
+  }
+
+  fPred = gp_f_rng(xPred, y, x, mu, w, rhoG, rhoL, sig2X, sig2Xp, sigmaEps);
   for (i in 1:nPred)
     yPred[i] = normal_rng(fPred[i], sigmaEps);
-  yPred2 = gp_y_rng(xPred, y, x, mu, w, rhoG, rhoL, sigma, sigmaEps);
+  yPred2 = gp_y_rng(xPred, y, x, mu, w, rhoG, rhoL, sig2X, sig2Xp, sigmaEps);
 
 
 }
+
 
