@@ -26,7 +26,7 @@ muV <- -1/10
 rhoV <- 0.1
 # rhoV <- c(0.8, .5)
 # sigmaV <- sqrt(1/10)
-sigmaV <- 3
+sigmaV <- 2
 
 d <- length(rhoG)
 
@@ -89,7 +89,7 @@ stan_data <- list(n = length(set), nPred = dat_list$n - length(set),
                   x = matrix(samps$X[,set,], ncol = d), y = samps$y[,set], d = length(rhoG),
                   xPred = matrix(samps$X[,-set,], ncol = d), fPred = samps$f[1,-set])
 
-comp_gp_mod_ML <- stan_model(file = 'sBCGP/stanCode/sBCGPML.stan')
+comp_gp_mod_ML <- stan_model(file = 'nsBCGP/stanCode/nsBCGPML.stan')
 gp_mod_ML <- sampling(comp_gp_mod_ML, 
                       data = stan_data, 
                       cores = 4, 
@@ -97,7 +97,7 @@ gp_mod_ML <- sampling(comp_gp_mod_ML,
                       iter = 1000, 
                       control = list(adapt_delta = 0.999))
 
-parsToMonitor <- c("mu", "w", "rhoG", "rhoL", "sigma", "sigmaEps")
+parsToMonitor <- c("mu", "w", "rhoG", "rhoL", "sigmaEps", "muV", "rhoV", "sigmaV")
 print(gp_mod_ML, pars = parsToMonitor)
 
 samps_gp_mod_ML <- extract(gp_mod_ML)
