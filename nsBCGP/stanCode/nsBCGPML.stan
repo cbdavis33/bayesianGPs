@@ -66,9 +66,9 @@ functions {
               real sigmaEps){
     
     int N = rows(x);
-    matrix[N, N] G = getG(x, rhoG);
-    matrix[N, N] L = getG(x, rhoL);
-    matrix[N, N] R = getR(x, w, G, L);
+    // matrix[N, N] G = getG(x, rhoG);
+    // matrix[N, N] L = getG(x, rhoL);
+    matrix[N, N] R = getR(x, w, rhoG, rhoL);
     matrix[N, N] K = getK(R, sig2X);
     
     matrix[N, N] C = K + diag_matrix(rep_vector(sigmaEps^2,N));
@@ -132,7 +132,7 @@ functions {
 
     vector[n] rootV = sqrt(sig2X);
     vector[nP] rootVp = sqrt(sig2Xp);
-    matrix[n, nP] Kop = (rootV * rootVp) .* Rop;
+    matrix[n, nP] Kop = (rootV * rootVp') .* Rop;
 
     return Kop;
   }
@@ -290,8 +290,8 @@ functions {
 
     {
       
-      matrix[nPred, nPred] KV = sigmaV^2 * getG(xPred, rhoV);
-      matrix[n, n] K = sigmaV^2 * getG(xObs, rhoV);
+      matrix[nPred, nPred] KV = sigmaV^2 * getG(xPred, rhoV)  + diag_matrix(rep_vector(1e-9, nPred));
+      matrix[n, n] K = sigmaV^2 * getG(xObs, rhoV)  + diag_matrix(rep_vector(1e-9, n));
       matrix[n, n] L_K = cholesky_decompose(K);
       matrix[n, nPred] Kop = sigmaV^2 * getGop(xObs, xPred, rhoV);   
       
@@ -300,11 +300,11 @@ functions {
       vector[n] L_K_Inv_yMinusMu = mdivide_left_tri_low(L_K, yMinusMu);
       
       vector[nPred] meanVPred = muV + L_K_Inv_Kop' * L_K_Inv_yMinusMu;
-      matrix[nPred, nPred] varPred = KV - L_C_Inv_Kop' * L_C_Inv_Kop;
+      matrix[nPred, nPred] varPred = KV - L_K_Inv_Kop' * L_K_Inv_Kop;
       
       matrix[nPred, nPred] L_varPred = cholesky_decompose(varPred);
       
-      vector[nPred] logVPred = multi_normal_cholesky_rng(meanPred, L_varPred);
+      vector[nPred] logVPred = multi_normal_cholesky_rng(meanVPred, L_varPred);
       
       vPred = exp(logVPred);
 
@@ -361,7 +361,7 @@ model {
     matrix[n, n] C = getC(x, w, rhoG, rhoL, sig2X, sigmaEps);
     matrix[n, n] KV = sigmaV^2 * getG(x, rhoV);
     L_C = cholesky_decompose(C);
-    L_KV = cholesky_decompose(KV);
+    L_KV = cholesky_decompose(KV) + diag_matrix(rep_vector(1e-12, n));
     muVec = rep_vector(mu, n);
     muVVec = rep_vector(muV, n);
 
