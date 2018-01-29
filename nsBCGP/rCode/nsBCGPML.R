@@ -26,15 +26,15 @@ muV <- -1/10
 rhoV <- 0.1
 # rhoV <- c(0.8, .5)
 # sigmaV <- sqrt(1/10)
-sigmaV <- 2
+sigmaV <- 1
 
 d <- length(rhoG)
 
-dat_list <- list(n = 100, D = d, mu = mu, w = w, sigmaEps = sigmaEps, 
+dat_list <- list(n = 40, D = d, mu = mu, w = w, sigmaEps = sigmaEps, 
                  rhoG = array(rhoG, dim = d), rhoL = array(rhoL, dim = d),
                  muV = muV, rhoV = array(rhoV, dim = d), sigmaV = sigmaV)
 # set.seed(11235)
-set <- sample(1:dat_list$n, size = 30, replace = F)
+set <- sample(1:dat_list$n, size = 20, replace = F)
 # draw <- sampling(sim_data_model, iter = 1, algorithm = 'Fixed_param', chains = 1, data = dat_list,
 #                  seed = 363360090)
 draw <- sampling(sim_data_model, iter = 1, algorithm = 'Fixed_param', chains = 1, data = dat_list)
@@ -92,10 +92,11 @@ stan_data <- list(n = length(set), nPred = dat_list$n - length(set),
 comp_gp_mod_ML <- stan_model(file = 'nsBCGP/stanCode/nsBCGPML.stan')
 gp_mod_ML <- sampling(comp_gp_mod_ML, 
                       data = stan_data, 
-                      cores = 4, 
-                      chains = 4, 
-                      iter = 1000, 
-                      control = list(adapt_delta = 0.999))
+                      cores = 1, 
+                      chains = 1, 
+                      iter = 200, 
+                      control = list(adapt_delta = 0.999,
+                                     max_treedepth = 20))
 
 parsToMonitor <- c("mu", "w", "rhoG", "rhoL", "sigmaEps", "muV", "rhoV", "sigmaV")
 print(gp_mod_ML, pars = parsToMonitor)
