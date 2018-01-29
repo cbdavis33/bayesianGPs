@@ -216,7 +216,8 @@ functions {
       vector[n] L_C_Inv_yMinusMu = mdivide_left_tri_low(L_C, yMinusMu);
 
       vector[nPred] meanPred = mu + L_C_Inv_Kop' * L_C_Inv_yMinusMu;
-      matrix[nPred, nPred] varPred = Kp - L_C_Inv_Kop' * L_C_Inv_Kop;
+      matrix[nPred, nPred] varPred = Kp - L_C_Inv_Kop' * L_C_Inv_Kop +
+                                     diag_matrix(rep_vector(1e-9, nPred));
 
       // meanPred = mu + Kop' * inverse_spd(C) * (yObs - mu);
       // varPred = Kp - Kop' * inverse_spd(C) * Kop;
@@ -359,9 +360,9 @@ model {
   {
    
     matrix[n, n] C = getC(x, w, rhoG, rhoL, sig2X, sigmaEps);
-    matrix[n, n] KV = sigmaV^2 * getG(x, rhoV);
+    matrix[n, n] KV = sigmaV^2 * getG(x, rhoV) + diag_matrix(rep_vector(1e-9, n));
     L_C = cholesky_decompose(C);
-    L_KV = cholesky_decompose(KV) + diag_matrix(rep_vector(1e-12, n));
+    L_KV = cholesky_decompose(KV);
     muVec = rep_vector(mu, n);
     muVVec = rep_vector(muV, n);
 
